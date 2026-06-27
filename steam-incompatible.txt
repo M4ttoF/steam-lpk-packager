@@ -31,6 +31,23 @@
 - https://steamcommunity.com/sharedfiles/filedetails/?id=3284018635&searchtext= # From steam-batch-may-17.txt
 - https://steamcommunity.com/sharedfiles/filedetails/?id=3284525760&searchtext= (fave) # From steam-batch-may-17.txt
 - https://steamcommunity.com/sharedfiles/filedetails/?id=3299676905&searchtext= (fave) # From steam-batch-may-17.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2784233700 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2758440558 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2630628280 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2759517910 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2755223399 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2751363119 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2923357862 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2783719392 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2783451137 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2687929518 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2869694949 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2606973032 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2762283091 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2761394379 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2791274756 # From blue_archive_girls.txt
+- https://steamcommunity.com/sharedfiles/filedetails/?id=2790530599 # From blue_archive_girls.txt
+
 
 ## Incompatible Live2D (.moc format)
 - https://steamcommunity.com/sharedfiles/filedetails/?id=1380986064 # From N/A (Not found in existing txt files)
