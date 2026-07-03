@@ -105,9 +105,9 @@ for item in items:
             config_data["fileId"] = basename
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(config_data, f, ensure_ascii=False, indent=2)
-            print(f"🔧 [FIX] Set empty fileId in config.json to '{basename}' for decryption compatibility.")
+            print(f"[FIX] Set empty fileId in config.json to '{basename}' for decryption compatibility.")
     except Exception as e:
-        print(f"⚠️ [WARNING] Failed to pre-verify config.json fileId: {e}")
+        print(f"[WARNING] Failed to pre-verify config.json fileId: {e}")
         
     # 2. Extract LPK
     if os.path.exists(extract_target):
@@ -184,7 +184,7 @@ for item in items:
                                 if os.path.exists(os.path.join(model_dir, motion_file)):
                                     cleaned_list.append(motion)
                                 else:
-                                    print(f"🧹 [PRUNE] Removed missing motion reference '{motion_file}' from group '{group_name}'.")
+                                    print(f"[PRUNE] Removed missing motion reference '{motion_file}' from group '{group_name}'.")
                         if cleaned_list:
                             cleaned_motions[group_name] = cleaned_list
                     if cleaned_motions:
@@ -195,9 +195,9 @@ for item in items:
                 # Write back cleaned JSON
                 with open(model_json_path, "w", encoding="utf-8") as f:
                     json.dump(model_data, f, ensure_ascii=False, indent=2)
-                print(f"✅ [CLEANUP] Successfully sanitized model references in {model_json_name}")
+                print(f"[CLEANUP] Successfully sanitized model references in {model_json_name}")
             except Exception as e:
-                print(f"⚠️ [WARNING] Failed to clean up model JSON references: {e}")
+                print(f"[WARNING] Failed to clean up model JSON references: {e}")
             
         # Zip the contents
         try:
