@@ -4,6 +4,7 @@ import json
 import sqlite3
 import shutil
 import glob
+import subprocess
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, 'db', 'catalog.sqlite')
