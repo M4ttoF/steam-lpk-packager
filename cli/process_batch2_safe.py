@@ -41,8 +41,13 @@ def load_batch_ids(batch_file_path):
             
             # Match any 9-11 digit numbers in the details links
             match = re.search(r'\?id=(\d+)', line)
+            item_id = None
             if match:
                 item_id = match.group(1)
+            elif line.isdigit():
+                item_id = line
+                
+            if item_id:
                 if item_id not in seen:
                     seen.add(item_id)
                     # Detect annotations like (vip) or (fave) in the same line
