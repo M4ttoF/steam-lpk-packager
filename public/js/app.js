@@ -1,12 +1,30 @@
-const { createApp, ref, onMounted, nextTick } = Vue;
+const { createApp, ref, reactive, computed, onMounted, nextTick } = Vue;
 
 createApp({
     setup() {
+        const currentTab = ref('packer');
         const urls = ref('');
         const isProcessing = ref(false);
         const log = ref([]);
         const packages = ref([]);
         const terminal = ref(null);
+
+        // Catalog Browser state
+        const catalogItems = ref([]);
+        const catalogTotal = ref(0);
+        const catalogLoading = ref(false);
+        const catalogFilters = reactive({
+            search: '',
+            types: ['Live2D', 'Spine'],
+            compatibilities: ['ready', 'incompatible', 'unknown'],
+            sort: 'subscriptions',
+            page: 1,
+            limit: 12
+        });
+
+        // Settings / Statistics state
+        const stats = ref({});
+        const statsLoading = ref(false);
 
         const appendLog = (text, type = 'info') => {
             log.value.push({ text, type });
@@ -31,6 +49,65 @@ createApp({
             }
         };
 
+        // API Call: Fetch Catalog Items with filter parameters
+        const fetchCatalog = async () => {
+            catalogLoading.value = true;
+            try {
+                const queryParams = new URLSearchParams({
+                    search: catalogFilters.search,
+                    types: catalogFilters.types.join(','),
+                    compatibilities: catalogFilters.compatibilities.join(','),
+                    sort: catalogFilters.sort,
+                    page: catalogFilters.page,
+                    limit: catalogFilters.limit
+                });
+                const res = await fetch(`/api/catalog?${queryParams.toString()}`);
+                const data = await res.json();
+                catalogItems.value = data.items || [];
+                catalogTotal.value = data.total || 0;
+            } catch (err) {
+                console.error("Failed to fetch catalog:", err);
+            } finally {
+                catalogLoading.value = false;
+            }
+        };
+
+        const resetPageAndFetch = () => {
+            catalogFilters.page = 1;
+            fetchCatalog();
+        };
+
+        const nextPage = () => {
+            if (catalogFilters.page < totalPages.value) {
+                catalogFilters.page++;
+                fetchCatalog();
+            }
+        };
+
+        const prevPage = () => {
+            if (catalogFilters.page > 1) {
+                catalogFilters.page--;
+                fetchCatalog();
+            }
+        };
+
+        const totalPages = computed(() => {
+            return Math.ceil(catalogTotal.value / catalogFilters.limit) || 1;
+        });
+
+        // API Call: Fetch statistics for Settings screen
+        const fetchStats = async () => {
+            statsLoading.value = true;
+            try {
+                const res = await fetch('/api/stats');
+                stats.value = await res.json();
+            } catch (err) {
+                console.error("Failed to fetch statistics:", err);
+            } finally {
+                statsLoading.value = false;
+            }
+        };
+
         // Action: Run Report (Dry-run wrapper)
         const runReport = async () => {
             if (!urls.value.trim()) return;
@@ -49,15 +126,14 @@ createApp({
                 if (data.error) {
                     appendLog(`❌ Error: ${data.error}`, "error");
                 } else {
-                    // Split the terminal stdout rollups into neat log lines
                     const lines = data.output.split('\n');
                     lines.forEach(line => {
                         if (line.trim()) {
-                            if (line.includes('❌') || line.includes('[CRITICAL WARNING]')) {
+                            if (line.includes('❌') || line.includes('[CRITICAL WARNING]') || line.includes('failed') || line.includes('Error:')) {
                                 appendLog(line, 'error');
                             } else if (line.includes('⚠️') || line.includes('[WARNING]')) {
                                 appendLog(line, 'warning');
-                            } else if (line.includes('✅') || line.includes('🎉')) {
+                            } else if (line.includes('✅') || line.includes('Success') || line.includes('successful')) {
                                 appendLog(line, 'success');
                             } else {
                                 appendLog(line, 'info');
@@ -79,20 +155,18 @@ createApp({
             clearLog();
             appendLog("🚀 Starting Batch Packaging Job...", "info");
 
-            // Setup Server-Sent Events stream
             const eventSource = new EventSource(`/api/process-stream?urls=${encodeURIComponent(urls.value)}`);
 
             eventSource.addEventListener('stdout', (e) => {
                 const text = JSON.parse(e.data);
-                // Handle newlines
                 const lines = text.split('\n');
                 lines.forEach(line => {
                     if (line.trim()) {
-                        if (line.includes('✅') || line.includes('🎉') || line.includes('Outcome:')) {
+                        if (line.includes('✅') || line.includes('Success') || line.includes('Outcome:')) {
                             appendLog(line, 'success');
                         } else if (line.includes('⚠️') || line.includes('[WARNING]')) {
                             appendLog(line, 'warning');
-                        } else if (line.includes('❌') || line.includes('[ERROR]')) {
+                        } else if (line.includes('❌') || line.includes('[ERROR]') || line.includes('failed')) {
                             appendLog(line, 'error');
                         } else {
                             appendLog(line, 'info');
@@ -115,7 +189,7 @@ createApp({
                 }
                 eventSource.close();
                 isProcessing.value = false;
-                fetchPackages(); // Reload packages list to catch the new ones
+                fetchPackages();
             });
 
             eventSource.onerror = (err) => {
@@ -125,20 +199,42 @@ createApp({
             };
         };
 
+        // Watch tab changes to lazy load statistics or model list
+        Vue.watch(currentTab, (newTab) => {
+            if (newTab === 'catalog') {
+                fetchCatalog();
+            } else if (newTab === 'settings') {
+                fetchStats();
+            }
+        });
+
         onMounted(() => {
             fetchPackages();
         });
 
         return {
+            currentTab,
             urls,
             isProcessing,
             log,
             packages,
             terminal,
+            catalogItems,
+            catalogTotal,
+            catalogLoading,
+            catalogFilters,
+            totalPages,
+            stats,
+            statsLoading,
             runReport,
             startPackaging,
             clearLog,
-            fetchPackages
+            fetchPackages,
+            fetchCatalog,
+            resetPageAndFetch,
+            nextPage,
+            prevPage,
+            fetchStats
         };
     }
 }).mount('#app');

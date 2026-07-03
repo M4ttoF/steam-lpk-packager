@@ -21,15 +21,15 @@
                 <span class="logo-text">LPK Studio</span>
             </div>
             <nav class="nav-links">
-                <a href="#" class="nav-link active">
+                <a href="#" @click.prevent="currentTab = 'packer'" :class="['nav-link', { active: currentTab === 'packer' }]">
                     <span class="nav-icon">⚡</span>
                     <span class="nav-label">Batch Packer</span>
                 </a>
-                <a href="#" class="nav-link disabled" title="Coming in Phase 2">
+                <a href="#" @click.prevent="currentTab = 'catalog'" :class="['nav-link', { active: currentTab === 'catalog' }]">
                     <span class="nav-icon">🎭</span>
                     <span class="nav-label">Catalog Browser</span>
                 </a>
-                <a href="#" class="nav-link disabled" title="Coming in Phase 2">
+                <a href="#" @click.prevent="currentTab = 'settings'" :class="['nav-link', { active: currentTab === 'settings' }]">
                     <span class="nav-icon">⚙️</span>
                     <span class="nav-label">Settings</span>
                 </a>
@@ -41,92 +41,269 @@
 
         <!-- Main Body -->
         <main class="main-content">
-            <header class="top-bar">
-                <h1>Batch Packager</h1>
-                <p class="subtitle">Extract LPK containers and package into optimized zip files for AIRI.</p>
-            </header>
+            <!-- TAB 1: Batch Packer -->
+            <div v-if="currentTab === 'packer'">
+                <header class="top-bar">
+                    <h1>Batch Packager</h1>
+                    <p class="subtitle">Extract LPK containers and package into optimized zip files for AIRI.</p>
+                </header>
 
-            <div class="grid-layout">
-                <!-- Left Control Box -->
-                <section class="card control-card">
-                    <h2>Steam Workshop Input</h2>
-                    <p class="card-desc">Paste Steam Workshop item URLs or IDs. One per line.</p>
-                    
-                    <textarea 
-                        v-model="urls" 
-                        placeholder="https://steamcommunity.com/sharedfiles/filedetails/?id=324910243&#10;https://steamcommunity.com/sharedfiles/filedetails/?id=324910245"
-                        class="url-input"
-                        :disabled="isProcessing"
-                    ></textarea>
+                <div class="grid-layout">
+                    <!-- Left Control Box -->
+                    <section class="card control-card">
+                        <h2>Steam Workshop Input</h2>
+                        <p class="card-desc">Paste Steam Workshop item URLs or IDs. One per line.</p>
+                        
+                        <textarea 
+                            v-model="urls" 
+                            placeholder="https://steamcommunity.com/sharedfiles/filedetails/?id=324910243&#10;https://steamcommunity.com/sharedfiles/filedetails/?id=324910245"
+                            class="url-input"
+                            :disabled="isProcessing"
+                        ></textarea>
 
-                    <div class="actions">
-                        <button 
-                            @click="runReport" 
-                            class="btn secondary-btn"
-                            :disabled="isProcessing || !urls.trim()"
-                        >
-                            <span>🔍</span> Run Report
-                        </button>
-                        <button 
-                            @click="startPackaging" 
-                            class="btn primary-btn"
-                            :disabled="isProcessing || !urls.trim()"
-                        >
-                            <span v-if="isProcessing" class="spinner">⏳</span>
-                            <span v-else>🚀</span> Pack Batch
-                        </button>
-                    </div>
-                </section>
-
-                <!-- Right Live Terminal Console -->
-                <section class="card terminal-card">
-                    <div class="terminal-header">
-                        <span class="terminal-dot red"></span>
-                        <span class="terminal-dot yellow"></span>
-                        <span class="terminal-dot green"></span>
-                        <span class="terminal-title">Execution Console</span>
-                        <button v-if="log.length" @click="clearLog" class="clear-btn">Clear</button>
-                    </div>
-                    <div ref="terminal" class="terminal-body">
-                        <div v-if="!log.length" class="terminal-placeholder">
-                            Waiting for process execution...
+                        <div class="actions">
+                            <button 
+                                @click="runReport" 
+                                class="btn secondary-btn"
+                                :disabled="isProcessing || !urls.trim()"
+                            >
+                                <span>🔍</span> Run Report
+                            </button>
+                            <button 
+                                @click="startPackaging" 
+                                class="btn primary-btn"
+                                :disabled="isProcessing || !urls.trim()"
+                            >
+                                <span v-if="isProcessing" class="spinner">⏳</span>
+                                <span v-else>🚀</span> Pack Batch
+                            </button>
                         </div>
-                        <div 
-                            v-for="(line, idx) in log" 
-                            :key="idx" 
-                            :class="['log-line', line.type]"
-                        >
-                            {{ line.text }}
+                    </section>
+
+                    <!-- Right Live Terminal Console -->
+                    <section class="card terminal-card">
+                        <div class="terminal-header">
+                            <span class="terminal-dot red"></span>
+                            <span class="terminal-dot yellow"></span>
+                            <span class="terminal-dot green"></span>
+                            <span class="terminal-title">Execution Console</span>
+                            <button v-if="log.length" @click="clearLog" class="clear-btn">Clear</button>
+                        </div>
+                        <div ref="terminal" class="terminal-body">
+                            <div v-if="!log.length" class="terminal-placeholder">
+                                Waiting for process execution...
+                            </div>
+                            <div 
+                                v-for="(line, idx) in log" 
+                                :key="idx" 
+                                :class="['log-line', line.type]"
+                            >
+                                {{ line.text }}
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Packaged Files Explorer -->
+                <section class="card explorer-card">
+                    <div class="explorer-header">
+                        <h2>📦 Packaged Outputs</h2>
+                        <button @click="fetchPackages" class="refresh-btn">🔄 Refresh List</button>
+                    </div>
+                    
+                    <div v-if="packages.length === 0" class="no-packages">
+                        No zip packages found in output directories yet. Run a download batch above!
+                    </div>
+
+                    <div v-else class="package-list">
+                        <div v-for="pkg in packages" :key="pkg.name" class="package-item">
+                            <div class="pkg-info">
+                                <span class="pkg-icon" v-if="pkg.type === 'live2d'">🎭</span>
+                                <span class="pkg-icon" v-else>💀</span>
+                                <div>
+                                    <h4 class="pkg-name">{{ pkg.name }}</h4>
+                                    <span class="pkg-meta">{{ pkg.type.toUpperCase() }} • {{ pkg.size }}</span>
+                                </div>
+                            </div>
+                            <a :href="pkg.path" class="btn download-btn">Download</a>
                         </div>
                     </div>
                 </section>
             </div>
 
-            <!-- Packaged Files Explorer -->
-            <section class="card explorer-card">
-                <div class="explorer-header">
-                    <h2>📦 Packaged Outputs</h2>
-                    <button @click="fetchPackages" class="refresh-btn">🔄 Refresh List</button>
-                </div>
-                
-                <div v-if="packages.length === 0" class="no-packages">
-                    No zip packages found in output directories yet. Run a download batch above!
+            <!-- TAB 2: Catalog Browser -->
+            <div v-if="currentTab === 'catalog'">
+                <header class="top-bar">
+                    <h1>Catalog Browser</h1>
+                    <p class="subtitle">Search, filter, and review compatible Live2D/Spine models inside SQLite catalog database.</p>
+                </header>
+
+                <!-- Filter Panel -->
+                <section class="card filter-panel">
+                    <div class="filter-row">
+                        <div class="filter-group search-group">
+                            <input 
+                                v-model="catalogFilters.search" 
+                                type="text" 
+                                placeholder="Search by title or ID..." 
+                                class="search-input"
+                                @input="resetPageAndFetch"
+                            >
+                        </div>
+                        <div class="filter-group select-group">
+                            <label class="filter-label">Sort By:</label>
+                            <select v-model="catalogFilters.sort" @change="resetPageAndFetch" class="custom-select">
+                                <option value="subscriptions">Popularity</option>
+                                <option value="created">Indexed Date</option>
+                                <option value="size">File Size</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="filter-row checkboxes-row">
+                        <div class="filter-group">
+                            <label class="filter-label">Formats:</label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" value="Live2D" v-model="catalogFilters.types" @change="resetPageAndFetch">
+                                Live2D
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" value="Spine" v-model="catalogFilters.types" @change="resetPageAndFetch">
+                                Spine
+                            </label>
+                        </div>
+
+                        <div class="filter-group">
+                            <label class="filter-label">Compatibility:</label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" value="ready" v-model="catalogFilters.compatibilities" @change="resetPageAndFetch">
+                                Ready (Compatible)
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" value="incompatible" v-model="catalogFilters.compatibilities" @change="resetPageAndFetch">
+                                Incompatible
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" value="unknown" v-model="catalogFilters.compatibilities" @change="resetPageAndFetch">
+                                Unknown (Pending)
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Grid Catalog View -->
+                <div v-if="catalogLoading" class="catalog-loading">
+                    <span class="spinner big">⏳</span> Loading catalog items...
                 </div>
 
-                <div v-else class="package-list">
-                    <div v-for="pkg in packages" :key="pkg.name" class="package-item">
-                        <div class="pkg-info">
-                            <span class="pkg-icon" v-if="pkg.type === 'live2d'">🎭</span>
-                            <span class="pkg-icon" v-else>💀</span>
-                            <div>
-                                <h4 class="pkg-name">{{ pkg.name }}</h4>
-                                <span class="pkg-meta">{{ pkg.type.toUpperCase() }} • {{ pkg.size }}</span>
+                <div v-else-if="catalogItems.length === 0" class="no-packages">
+                    No matching items found in the database catalog. Adjust filters and try again!
+                </div>
+
+                <div v-else>
+                    <div class="catalog-grid">
+                        <div v-for="item in catalogItems" :key="item.id" class="model-card">
+                            <div class="card-thumb-wrapper">
+                                <img 
+                                    :src="item.thumbnail_local ? item.thumbnail_local : 'https://placehold.co/400x300/181b28/8b949e?text=Thumbnail+Pending'" 
+                                    :alt="item.title"
+                                    class="card-thumb"
+                                    onerror="this.src='https://placehold.co/400x300/181b28/8b949e?text=No+Thumbnail'"
+                                >
+                                <span :class="['type-badge', item.steam_type.toLowerCase()]">{{ item.steam_type }}</span>
+                            </div>
+                            <div class="card-details">
+                                <h3 class="card-title" :title="item.title">{{ item.title }}</h3>
+                                <p class="card-author">By {{ item.creator || 'Anonymous' }}</p>
+                                <div class="card-bottom">
+                                    <span class="card-size">{{ (item.file_size / (1024 * 1024)).toFixed(2) }} MB</span>
+                                    
+                                    <!-- Compatibility badge status -->
+                                    <span v-if="item.compatible === 1" class="compat-status-badge ready" title="Model matches engine requirements">Ready</span>
+                                    <span v-else-if="item.compatible === 0" class="compat-status-badge fail" :title="item.compat_reason || 'Incompatible runtime version'">Unsupported</span>
+                                    <span v-else class="compat-status-badge pending" title="Waiting for fingerprint pipeline">Pending</span>
+                                </div>
                             </div>
                         </div>
-                        <a :href="pkg.path" class="btn download-btn">Download</a>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="pagination">
+                        <button 
+                            @click="prevPage" 
+                            class="btn secondary-btn"
+                            :disabled="catalogFilters.page === 1"
+                        >
+                            ◀ Previous
+                        </button>
+                        <span class="page-info">
+                            Page {{ catalogFilters.page }} of {{ totalPages }} (Total: {{ catalogTotal }} items)
+                        </span>
+                        <button 
+                            @click="nextPage" 
+                            class="btn secondary-btn"
+                            :disabled="catalogFilters.page >= totalPages"
+                        >
+                            Next ▶
+                        </button>
                     </div>
                 </div>
-            </section>
+            </div>
+
+            <!-- TAB 3: Settings Panel -->
+            <div v-if="currentTab === 'settings'">
+                <header class="top-bar">
+                    <h1>Settings & Statistics</h1>
+                    <p class="subtitle">View local storage directories, index metrics, and SQLite database catalog states.</p>
+                </header>
+
+                <div class="settings-grid">
+                    <!-- Storage info box -->
+                    <section class="card settings-card">
+                        <h2>Directory Configurations</h2>
+                        <div class="settings-list">
+                            <div class="settings-item">
+                                <span class="settings-label">Windows Storage Root</span>
+                                <span class="settings-value mono">E:\lpk-studio-storage</span>
+                            </div>
+                            <div class="settings-item">
+                                <span class="settings-label">Workshop Cache Path</span>
+                                <span class="settings-value mono">E:\lpk-studio-storage\workshop_cache</span>
+                            </div>
+                            <div class="settings-item">
+                                <span class="settings-label">Database Path</span>
+                                <span class="settings-value mono">/db/catalog.sqlite</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Statistics Summary box -->
+                    <section class="card stats-card">
+                        <h2>Catalog Index Statistics</h2>
+                        <div v-if="statsLoading" class="stats-loading">
+                            Loading catalog statistics...
+                        </div>
+                        <div v-else class="stats-grid">
+                            <div class="stat-box">
+                                <span class="stat-number">{{ stats.total || 0 }}</span>
+                                <span class="stat-label">Total Indexed</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-number">{{ stats.live2d || 0 }}</span>
+                                <span class="stat-label">Live2D Models</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-number">{{ stats.spine || 0 }}</span>
+                                <span class="stat-label">Spine Models</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-number green-text">{{ stats.compatible || 0 }}</span>
+                                <span class="stat-label">Compatible</span>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
         </main>
     </div>
 

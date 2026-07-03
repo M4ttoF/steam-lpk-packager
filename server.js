@@ -9,13 +9,21 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Serve thumbnails directory locally or fallback to storage path on E drive if available
+const localThumbDir = path.join(__dirname, 'public', 'thumbnails');
+const extThumbDir = "E:\\lpk-studio-storage\\public\\thumbnails";
+const targetThumbDir = fs.existsSync(extThumbDir) ? extThumbDir : localThumbDir;
+app.use('/thumbnails', express.static(targetThumbDir));
+
 // Fallback empty DB check/create via python
 const dbPath = path.join(__dirname, 'db', 'catalog.sqlite');
 
 // Helper to shell out database updates to python helper
 function runDbQuery(action, params = {}) {
+    // Check if python or py should be used based on active OS
+    const cmdBinary = process.platform === 'win32' ? 'py' : 'python3';
     return new Promise((resolve, reject) => {
-        const pythonProcess = spawn('python3', [
+        const pythonProcess = spawn(cmdBinary, [
             path.join(__dirname, 'cli', 'db_helper.py'),
             action,
             JSON.stringify(params)
@@ -186,6 +194,37 @@ app.get('/api/packages', (req, res) => {
     scanDir(live2dPath, 'live2d');
     scanDir(spinePath, 'spine');
     res.json(packages);
+});
+
+// API: Catalog Query
+app.get('/api/catalog', async (req, res) => {
+    try {
+        const { search, types, compatibilities, sort, page, limit } = req.query;
+        
+        const params = {
+            search: search || '',
+            types: types ? types.split(',') : [],
+            compatibilities: compatibilities ? compatibilities.split(',') : [],
+            sort: sort || 'subscriptions',
+            limit: parseInt(limit || 20),
+            offset: (parseInt(page || 1) - 1) * parseInt(limit || 20)
+        };
+        
+        const data = await runDbQuery('query', params);
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// API: Stats Summary
+app.get('/api/stats', async (req, res) => {
+    try {
+        const stats = await runDbQuery('stats');
+        res.json(stats);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Download endpoints for packages
