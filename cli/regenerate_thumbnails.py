@@ -243,6 +243,17 @@ def process_item(workshop_id: str, dry_run: bool = False, verbose: bool = False)
             os.remove(target_output)
         return "render_failed"
 
+    # Update SQLite database to mark the thumbnail as regenerated
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE models SET thumbnail_regenerated = 1 WHERE id = ?", (workshop_id,))
+        conn.commit()
+        conn.close()
+        print(f"  [{workshop_id}] Marked as thumbnail_regenerated in SQLite database.")
+    except Exception as db_err:
+        print(f"  [{workshop_id}] [WARNING] Failed to update database flag: {db_err}")
+
     print(f"  [{workshop_id}] [OK] Rendered replacement thumbnail to public/thumbnails/fixed/!")
     return "ok"
 
