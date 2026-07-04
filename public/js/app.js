@@ -17,6 +17,7 @@ createApp({
             search: '',
             types: ['Live2D', 'Spine'],
             compatibilities: ['ready', 'incompatible', 'unknown'],
+            thumbnail_regenerated: false,
             sort: 'subscriptions',
             page: 1,
             limit: 12
@@ -130,6 +131,7 @@ createApp({
                     search: catalogFilters.search,
                     types: catalogFilters.types.join(','),
                     compatibilities: catalogFilters.compatibilities.join(','),
+                    thumbnail_regenerated: catalogFilters.thumbnail_regenerated,
                     sort: catalogFilters.sort,
                     page: catalogFilters.page,
                     limit: catalogFilters.limit

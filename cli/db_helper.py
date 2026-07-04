@@ -88,6 +88,10 @@ def query_catalog(params):
                 compat_conditions.append("compatible IS NULL")
         if compat_conditions:
             query += f" AND ({' OR '.join(compat_conditions)})"
+
+    # Filter for regenerated thumbnails
+    if params.get('thumbnail_regenerated') == 'true' or params.get('thumbnail_regenerated') is True:
+        query += " AND thumbnail_regenerated = 1"
             
     # Count total matching query before pagination
     count_query = query.replace("SELECT *", "SELECT COUNT(*) as count")

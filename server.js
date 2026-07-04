@@ -200,7 +200,7 @@ app.get('/api/packages', (req, res) => {
 // API: Catalog Query
 app.get('/api/catalog', async (req, res) => {
     try {
-        const { search, types, compatibilities, sort, page, limit } = req.query;
+        const { search, types, compatibilities, sort, page, limit, thumbnail_regenerated } = req.query;
         
         const params = {
             search: search || '',
@@ -208,7 +208,8 @@ app.get('/api/catalog', async (req, res) => {
             compatibilities: compatibilities ? compatibilities.split(',') : [],
             sort: sort || 'subscriptions',
             limit: parseInt(limit || 20),
-            offset: (parseInt(page || 1) - 1) * parseInt(limit || 20)
+            offset: (parseInt(page || 1) - 1) * parseInt(limit || 20),
+            thumbnail_regenerated: thumbnail_regenerated === 'true'
         };
         
         const data = await runDbQuery('query', params);

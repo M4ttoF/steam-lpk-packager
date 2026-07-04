@@ -188,6 +188,14 @@
                                 Unknown (Pending)
                             </label>
                         </div>
+
+                        <div class="filter-group">
+                            <label class="filter-label">Thumbnails:</label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" v-model="catalogFilters.thumbnail_regenerated" @change="resetPageAndFetch">
+                                Recovered Only
+                            </label>
+                        </div>
                     </div>
                 </section>
 
