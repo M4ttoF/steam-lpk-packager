@@ -929,4 +929,24 @@ body {
     }
 }
 
+/* Card mini tag styling */
+.tag-badge-mini {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background-color: rgba(30, 35, 54, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 1px 6px;
+    white-space: nowrap;
+    text-transform: capitalize;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.tag-badge-mini:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
 

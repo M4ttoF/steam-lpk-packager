@@ -8,19 +8,6 @@ import time
 import urllib.parse
 import urllib.request
 
-# Detect if running in steam-lpk-packager repo or personal_airi
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if "steam-lpk-packager" in current_dir:
-    BASE_DIR = current_dir
-    LPK_DIR = os.path.join(BASE_DIR, "packages")
-    LIVE2D_DIR = os.path.join(BASE_DIR, "live2d_packages")
-    SPINE_DIR = os.path.join(BASE_DIR, "spine_packages")
-else:
-    BASE_DIR = "/Users/richardpinedo/Documents/Projects/airi/personal_airi"
-    LPK_DIR = os.path.join(BASE_DIR, "packages_lpk")
-    LIVE2D_DIR = os.path.join(BASE_DIR, "packages_live2d")
-    SPINE_DIR = os.path.join(BASE_DIR, "packages_spine")
-
 # Helper to read basic key=values from .env if present
 def load_env_vars():
     env_vars = {}
@@ -35,6 +22,18 @@ def load_env_vars():
     return env_vars
 
 env_config = load_env_vars()
+STORAGE_DIR = env_config.get("STORAGE_DIR") or env_config.get("STORAGE_ROOT") or os.path.join(os.path.dirname(BASE_DIR), "storage")
+
+if "steam-lpk-packager" in current_dir:
+    BASE_DIR = current_dir
+    LPK_DIR = os.path.join(BASE_DIR, "packages")
+    LIVE2D_DIR = os.path.join(STORAGE_DIR, "live2d_packages")
+    SPINE_DIR = os.path.join(STORAGE_DIR, "spine_packages")
+else:
+    BASE_DIR = "/Users/richardpinedo/Documents/Projects/airi/personal_airi"
+    LPK_DIR = os.path.join(BASE_DIR, "packages_lpk")
+    LIVE2D_DIR = os.path.join(STORAGE_DIR, "packages_live2d")
+    SPINE_DIR = os.path.join(STORAGE_DIR, "packages_spine")
 
 # Resolve Steam content directory dynamically (cross-platform relative folder fallback)
 if env_config.get("STEAM_CONTENT_DIR"):
@@ -162,6 +161,10 @@ def process_item(item_id):
     if code != 0:
         print(f"  [WARNING] verify_spine_versions returned code {code}")
         print(f"  STDOUT: {stdout}")
+
+    # 4.5 Package decrypted folder into final ZIP
+    print(f"  [PACKAGE] Compiling output ZIP package for {item_id}...")
+    run_command(f"python3 package_models.py {item_id}")
 
     # 5. Manual cleanup of packages_lpk folder (since verify_spine_versions only cleans Spine folders)
     if os.path.exists(dest_dir):

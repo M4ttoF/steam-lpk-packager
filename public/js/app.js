@@ -148,7 +148,14 @@ createApp({
                 });
                 const res = await fetch(`/api/catalog?${queryParams.toString()}`);
                 const data = await res.json();
-                catalogItems.value = data.items || [];
+                catalogItems.value = (data.items || []).map(item => {
+                    try {
+                        item.tags = item.tags ? JSON.parse(item.tags) : [];
+                    } catch (e) {
+                        item.tags = [];
+                    }
+                    return item;
+                });
                 catalogTotal.value = data.total || 0;
             } catch (err) {
                 console.error("Failed to fetch catalog:", err);

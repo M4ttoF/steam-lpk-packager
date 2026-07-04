@@ -171,8 +171,10 @@ app.get('/api/process-stream', (req, res) => {
 
 // API: Browse Packaged ZIPs
 app.get('/api/packages', (req, res) => {
-    const live2dPath = path.join(__dirname, 'cli', 'live2d_packages');
-    const spinePath = path.join(__dirname, 'cli', 'spine_packages');
+    const envConfig = loadEnv();
+    const storageDir = envConfig.STORAGE_DIR || envConfig.STORAGE_ROOT || path.join(__dirname, 'storage');
+    const live2dPath = path.join(storageDir, 'live2d_packages');
+    const spinePath = path.join(storageDir, 'spine_packages');
     const packages = [];
 
     const scanDir = (dirPath, type) => {
@@ -274,7 +276,7 @@ app.get('/api/config', (req, res) => {
     res.json({ 
         projectPath: __dirname,
         steamContentDir: steamContentDir,
-        storageRoot: envConfig.STORAGE_ROOT || defaultStorageRoot,
+        storageRoot: envConfig.STORAGE_DIR || envConfig.STORAGE_ROOT || defaultStorageRoot,
         maxSizeGB: envConfig.MAX_SIZE_GB || '1.5'
     });
 });
@@ -285,7 +287,10 @@ app.post('/api/config', (req, res) => {
         const { steamContentDir, storageRoot, maxSizeGB } = req.body;
         const updates = {};
         if (steamContentDir !== undefined) updates.STEAM_CONTENT_DIR = steamContentDir;
-        if (storageRoot !== undefined) updates.STORAGE_ROOT = storageRoot;
+        if (storageRoot !== undefined) {
+            updates.STORAGE_DIR = storageRoot;
+            updates.STORAGE_ROOT = storageRoot;
+        }
         if (maxSizeGB !== undefined) updates.MAX_SIZE_GB = maxSizeGB;
         
         saveEnv(updates);
@@ -364,8 +369,10 @@ app.post('/api/regenerate-thumbnail', (req, res) => {
 // Download endpoints for packages
 app.get('/download/:type/:filename', (req, res) => {
     const { type, filename } = req.params;
+    const envConfig = loadEnv();
+    const storageDir = envConfig.STORAGE_DIR || envConfig.STORAGE_ROOT || path.join(__dirname, 'storage');
     const folder = type === 'live2d' ? 'live2d_packages' : 'spine_packages';
-    const filePath = path.join(__dirname, 'cli', folder, filename);
+    const filePath = path.join(storageDir, folder, filename);
 
     if (fs.existsSync(filePath)) {
         res.download(filePath);

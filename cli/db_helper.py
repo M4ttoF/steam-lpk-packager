@@ -70,8 +70,16 @@ def query_catalog(params):
     args = []
     
     if search:
-        query += " AND (title LIKE ? OR id = ?)"
-        args.extend([f"%{search}%", search])
+        # Check if searching for a specific numeric ID directly
+        if search.isdigit():
+            query += " AND (id = ? OR title LIKE ?)"
+            args.extend([search, f"%{search}%"])
+        else:
+            # Split search input by whitespace to support combined tags and text searches
+            words = [w.strip() for w in search.split() if w.strip()]
+            for word in words:
+                query += " AND (title LIKE ? OR creator LIKE ? OR tags LIKE ?)"
+                args.extend([f"%{word}%", f"%{word}%", f"%{word}%"])
         
     if types:
         query += f" AND steam_type IN ({','.join(['?'] * len(types))})"

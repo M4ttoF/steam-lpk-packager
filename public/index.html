@@ -254,6 +254,9 @@
                                     </div>
                                 </div>
                                 <p class="card-author">By {{ item.creator || 'Anonymous' }}</p>
+                                <div v-if="item.tags && item.tags.length > 0" class="card-tags-row" style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; min-height: 20px;">
+                                    <span v-for="tag in item.tags.slice(0, 3)" :key="tag" class="tag-badge-mini">{{ tag }}</span>
+                                </div>
                                 <div class="card-bottom">
                                     <span class="card-size">{{ (item.file_size / (1024 * 1024)).toFixed(2) }} MB</span>
                                     
@@ -383,12 +386,20 @@
                 <div class="lightbox-caption">
                     <h2>{{ selectedModel.title }}</h2>
                     <p>By {{ selectedModel.creator || 'Anonymous' }} | ID: {{ selectedModel.id }}</p>
-                    <div style="margin-top: 10px;">
+                    
+                    <div v-if="selectedModel.tags && selectedModel.tags.length > 0" class="lightbox-tags" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+                        <h4 style="margin: 0 0 8px 0; color: var(--text-secondary); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Detected Tags</h4>
+                        <div class="tags-container" style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 100px; overflow-y: auto; padding-right: 4px;">
+                            <span v-for="tag in selectedModel.tags" :key="tag" class="tag-badge-mini" style="font-size: 11px; background-color: var(--bg-terminal); border: 1px solid var(--border-color); border-radius: 4px; padding: 2px 6px; color: var(--text-primary);">{{ tag }}</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
                         <a 
                             :href="'http://steamcommunity.com/sharedfiles/filedetails/?id=' + selectedModel.id" 
                             target="_blank" 
                             class="btn primary-btn"
-                            style="display: inline-block; text-decoration: none; font-size: 14px;"
+                            style="display: inline-block; text-decoration: none; font-size: 13px; padding: 8px 16px;"
                         >
                             🌐 View on Steam Workshop
                         </a>
