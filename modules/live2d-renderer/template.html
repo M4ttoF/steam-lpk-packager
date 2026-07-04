@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
+    <title>Live2D Renderer</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: transparent; overflow: hidden; }
+        canvas { display: block; width: 5000px; height: 5000px; }
+    </style>
+</head>
+<body>
+    <!-- Cubism runtimes required for pixi-live2d-display -->
+    <script src="live2d.min.js"></script>
+    <script src="live2dcubismcore.min.js"></script>
+    <!-- bundle.js injected by Puppeteer -->
+</body>
+</html>

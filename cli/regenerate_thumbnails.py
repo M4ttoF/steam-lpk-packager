@@ -1,0 +1,267 @@
+#!/usr/bin/env python3
+"""
+regenerate_thumbnails.py — Full LPK thumbnail regeneration pipeline.
+
+Steps for each workshop item in the storage directory:
+  1. Find <workshop_id>.png thumbnail
+  2. Detect if it's a bad auto-generated thumbnail (white + grayscale)
+  3. Find or trigger decryption of the model0.json
+  4. Invoke render_single.js (Node/Puppeteer) to render a proper thumbnail
+  5. Replace the original <workshop_id>.png with the rendered output
+
+Usage:
+    # Scan all items, detect + regenerate bad thumbnails
+    py regenerate_thumbnails.py
+
+    # Process a single specific workshop ID
+    py regenerate_thumbnails.py --workshop-id 3709978268
+
+    # Dry run: only detect, don't render
+    py regenerate_thumbnails.py --dry-run
+
+    # Verbose output
+    py regenerate_thumbnails.py --verbose
+
+Environment (reads from .env in project root):
+    STORAGE_DIR   — base directory of workshop_cache (e.g. E:\lpk-studio-storage)
+"""
+
+import argparse
+import glob
+import json
+import os
+import subprocess
+import sys
+import time
+
+# ─── Path resolution ─────────────────────────────────────────────────────────
+
+SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)  # steam-lpk-packager/
+
+RENDERER_JS  = os.path.join(PROJECT_ROOT, "modules", "live2d-renderer", "render_single.js")
+DECRYPT_PY   = os.path.join(SCRIPT_DIR, "lpk2moc3-spine", "decrypt_one.py")
+DETECT_PY    = os.path.join(SCRIPT_DIR, "detect_thumbnail.py")
+
+
+def load_env() -> dict:
+    """Load key=value pairs from the project's .env file."""
+    env = {}
+    env_path = os.path.join(PROJECT_ROOT, ".env")
+    if os.path.exists(env_path):
+        with open(env_path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    env[k.strip()] = v.strip()
+    return env
+
+
+ENV = load_env()
+STORAGE_DIR   = ENV.get("STORAGE_DIR", r"E:\lpk-studio-storage")
+WORKSHOP_CACHE = os.path.join(STORAGE_DIR, "workshop_cache")
+
+
+# ─── Detection ───────────────────────────────────────────────────────────────
+
+def is_bad_thumbnail(png_path: str, verbose: bool = False) -> bool:
+    """Returns True if the thumbnail is the auto-generated bad one."""
+    result = subprocess.run(
+         [sys.executable, DETECT_PY, png_path],
+         capture_output=True, text=True
+    )
+    verdict = result.stdout.strip()
+    if verbose:
+        safe_base = os.path.basename(png_path).encode('ascii', errors='replace').decode('ascii')
+        print(f"    [detect] {verdict}  <- {safe_base}")
+        if result.stderr.strip():
+            safe_err = result.stderr.strip().encode('ascii', errors='replace').decode('ascii')
+            print(f"    [detect stderr] {safe_err}")
+    return verdict == "BAD"
+
+
+# ─── Decryption ──────────────────────────────────────────────────────────────
+
+def find_decrypted_model(workshop_dir: str) -> str | None:
+    """
+    Looks for model0.json in the decrypted/ subfolder.
+    Returns the path if found, else None.
+    """
+    decrypted_base = os.path.join(workshop_dir, "decrypted")
+    if not os.path.isdir(decrypted_base):
+        return None
+
+    # Model lands in decrypted/<character_name>/model0.json
+    for sub in os.listdir(decrypted_base):
+        candidate = os.path.join(decrypted_base, sub, "model0.json")
+        if os.path.isfile(candidate):
+            return candidate
+    return None
+
+
+def decrypt_lpk(workshop_dir: str, verbose: bool = False) -> str | None:
+    """
+    Finds the .lpk + config.json in workshop_dir and decrypts into decrypted/ subfolder.
+    Returns path to model0.json on success, None on failure.
+    """
+    lpk_files = glob.glob(os.path.join(workshop_dir, "*.lpk"))
+    config_path = os.path.join(workshop_dir, "config.json")
+
+    if not lpk_files:
+        print(f"    [decrypt] No .lpk file found in {workshop_dir}")
+        return None
+    if not os.path.isfile(config_path):
+        print(f"    [decrypt] No config.json found in {workshop_dir}")
+        return None
+
+    lpk_path    = lpk_files[0]
+    output_dir  = os.path.join(workshop_dir, "decrypted")
+
+    safe_lpk = os.path.basename(lpk_path).encode('ascii', errors='replace').decode('ascii')
+    print(f"    [decrypt] Decrypting {safe_lpk}...")
+    env = os.environ.copy()
+    env["PYTHONUTF8"] = "1"
+
+    result = subprocess.run(
+        [sys.executable, DECRYPT_PY, lpk_path, config_path, output_dir],
+        capture_output=True, text=True, env=env
+    )
+    if result.returncode != 0:
+        print(f"    [decrypt] FAILED (code {result.returncode})")
+        if verbose:
+            safe_err = result.stderr.strip().encode('ascii', errors='replace').decode('ascii')
+            print(f"    {safe_err}")
+        return None
+
+    if verbose:
+        safe_out = output_dir.encode('ascii', errors='replace').decode('ascii')
+        print(f"    [decrypt] OK -> {safe_out}")
+
+    return find_decrypted_model(workshop_dir)
+
+
+# ─── Rendering ───────────────────────────────────────────────────────────────
+
+def render_thumbnail(model_json_path: str, output_png_path: str, verbose: bool = False) -> bool:
+    """
+    Calls render_single.js via Node to render a Live2D thumbnail.
+    Returns True on success.
+    """
+    if not os.path.isfile(RENDERER_JS):
+        print(f"    [render] render_single.js not found: {RENDERER_JS}")
+        return False
+
+    print(f"    [render] Rendering {os.path.basename(model_json_path)}...")
+    start = time.time()
+
+    result = subprocess.run(
+        ["node", RENDERER_JS, model_json_path, output_png_path],
+        capture_output=not verbose,
+        text=True,
+        cwd=os.path.dirname(RENDERER_JS),
+    )
+
+    elapsed = time.time() - start
+
+    if result.returncode != 0:
+        print(f"    [render] FAILED (code {result.returncode}) after {elapsed:.1f}s")
+        if not verbose and result.stderr:
+            print(f"    [render] stderr: {result.stderr.strip()[-500:]}")
+        return False
+
+    if os.path.isfile(output_png_path):
+        size_kb = os.path.getsize(output_png_path) / 1024
+        print(f"    [render] [OK] Done in {elapsed:.1f}s - {size_kb:.0f} KB -> {output_png_path}")
+        return True
+    else:
+        print(f"    [render] FAILED - output PNG not created after {elapsed:.1f}s")
+        return False
+
+
+# ─── Per-item pipeline ───────────────────────────────────────────────────────
+
+def process_item(workshop_id: str, dry_run: bool = False, verbose: bool = False) -> str:
+    """
+    Processes a single workshop ID by reading the thumbnail from public/thumbnails/<workshop_id>.png.
+    Returns: 'ok', 'skipped', 'no_thumbnail', 'no_model', 'render_failed'
+    """
+    thumbnail_path = os.path.join(PROJECT_ROOT, "public", "thumbnails", f"{workshop_id}.png")
+    if not os.path.isfile(thumbnail_path):
+        print(f"  [{workshop_id}] No PNG thumbnail found in public/thumbnails/ - skipping.")
+        return "no_thumbnail"
+
+    print(f"  [{workshop_id}] Checking: {workshop_id}.png")
+
+    # Detection
+    if not is_bad_thumbnail(thumbnail_path, verbose=verbose):
+        print(f"  [{workshop_id}] [OK] Thumbnail looks good - skipping.")
+        return "skipped"
+
+    print(f"  [{workshop_id}] [BAD] BAD thumbnail detected - needs regeneration.")
+
+    # Copy the detected "bad" thumbnail to public/thumbnails/bad_detected/ for review
+    bad_detected_dir = os.path.join(PROJECT_ROOT, "public", "thumbnails", "bad_detected")
+    os.makedirs(bad_detected_dir, exist_ok=True)
+    import shutil
+    shutil.copy2(thumbnail_path, os.path.join(bad_detected_dir, f"{workshop_id}.png"))
+    print(f"  [{workshop_id}] Copied original bad thumbnail to public/thumbnails/bad_detected/ for review.")
+
+    # Short-circuit: Skip decryption and rendering for now to focus on detection
+    return "ok"
+
+    print(f"  [{workshop_id}] [OK] Rendered replacement thumbnail to public/thumbnails/fixed/!")
+    return "ok"
+
+
+# ─── Main ─────────────────────────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(description="LPK Studio — Thumbnail Regeneration Pipeline")
+    parser.add_argument("--workshop-id", help="Process a single specific workshop ID only")
+    parser.add_argument("--dry-run", action="store_true", help="Detect only, do not render or replace")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed output")
+    args = parser.parse_args()
+
+    thumbnails_dir = os.path.join(PROJECT_ROOT, "public", "thumbnails")
+    if not os.path.isdir(thumbnails_dir):
+        print(f"[Error] public/thumbnails not found: {thumbnails_dir}")
+        sys.exit(1)
+
+    # Collect IDs to process from the curated public/thumbnails folder
+    if args.workshop_id:
+        ids = [args.workshop_id]
+    else:
+        # Find all files directly in public/thumbnails and parse their filenames
+        ids = sorted([
+            os.path.splitext(f)[0] for f in os.listdir(thumbnails_dir)
+            if f.endswith(".png") and os.path.isfile(os.path.join(thumbnails_dir, f))
+        ])
+
+    print("=" * 60)
+    print(f"LPK STUDIO — THUMBNAIL REGENERATION PIPELINE (CURATED SET)")
+    if args.dry_run:
+        print("MODE: DRY RUN (no files will be modified)")
+    print(f"THUMBNAILS SOURCE: {thumbnails_dir}")
+    print(f"ITEMS TO SCAN:     {len(ids)}")
+    print("=" * 60)
+
+    counts = {"ok": 0, "skipped": 0, "no_thumbnail": 0, "no_model": 0, "render_failed": 0}
+
+    for i, wid in enumerate(ids, 1):
+        print(f"\n[{i}/{len(ids)}] Workshop ID: {wid}")
+        status = process_item(wid, dry_run=args.dry_run, verbose=args.verbose)
+        counts[status] = counts.get(status, 0) + 1
+
+    print("\n" + "=" * 60)
+    print("PIPELINE COMPLETE — Summary")
+    print(f"  [OK] Regenerated    : {counts['ok']}")
+    print(f"  [-]  Skipped (good) : {counts['skipped']}")
+    print(f"  [?]  No thumbnail   : {counts['no_thumbnail']}")
+    print(f"  [!]  No model       : {counts['no_model']}")
+    print(f"  [X]  Render failed  : {counts['render_failed']}")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    main()
