@@ -216,6 +216,10 @@ for item in items:
                 shutil.rmtree(decrypted_dir)
             shutil.copytree(model_dir, decrypted_dir)
             print(f"Successfully decrypted & saved Live2D folder for {basename} to E: storage.")
+            # Delete the source LPK file to save disk space
+            if lpk_path and os.path.isfile(lpk_path):
+                os.remove(lpk_path)
+                print(f"🧹 [DELETE] Removed source LPK file: {os.path.basename(lpk_path)}")
         except Exception as e:
             print(f"Failed to copy decrypted folder for {basename}: {e}")
             
@@ -232,6 +236,10 @@ for item in items:
                 shutil.rmtree(decrypted_dir)
             shutil.copytree(model_dir, decrypted_dir)
             print(f"Successfully decrypted & saved Spine folder for {basename} to E: storage.")
+            # Delete the source LPK file to save disk space
+            if lpk_path and os.path.isfile(lpk_path):
+                os.remove(lpk_path)
+                print(f"🧹 [DELETE] Removed source LPK file: {os.path.basename(lpk_path)}")
         except Exception as e:
             print(f"Failed to copy decrypted folder for {basename}: {e}")
     else:
