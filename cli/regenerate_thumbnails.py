@@ -196,10 +196,10 @@ def process_item(workshop_id: str, dry_run: bool = False, verbose: bool = False,
 
     prefix = f"{progress_prefix} " if progress_prefix else ""
 
-    thumbnail_path = os.path.join(PROJECT_ROOT, "public", "thumbnails", f"{workshop_id}.png")
+    thumbnail_path = os.path.join(PROJECT_ROOT, "public", "thumbnails", f"{workshop_id}.jpg")
     if not os.path.isfile(thumbnail_path):
         elapsed = (time.perf_counter() - start_time) * 1000.0
-        print(f"  {prefix}[?] [{workshop_id}] No PNG thumbnail found in public/thumbnails/ - {elapsed:.0f}ms")
+        print(f"  {prefix}[?] [{workshop_id}] No JPG thumbnail found in public/thumbnails/ - {elapsed:.0f}ms")
         return "no_thumbnail"
 
     # Detection
@@ -212,7 +212,7 @@ def process_item(workshop_id: str, dry_run: bool = False, verbose: bool = False,
     bad_detected_dir = os.path.join(PROJECT_ROOT, "public", "thumbnails", "bad_detected")
     os.makedirs(bad_detected_dir, exist_ok=True)
     import shutil
-    shutil.copy2(thumbnail_path, os.path.join(bad_detected_dir, f"{workshop_id}.png"))
+    shutil.copy2(thumbnail_path, os.path.join(bad_detected_dir, f"{workshop_id}.jpg"))
 
     if dry_run:
         elapsed = (time.perf_counter() - start_time) * 1000.0
@@ -238,9 +238,9 @@ def process_item(workshop_id: str, dry_run: bool = False, verbose: bool = False,
     # Determine the public review folder target
     fixed_dir = os.path.join(PROJECT_ROOT, "public", "thumbnails", "fixed")
     os.makedirs(fixed_dir, exist_ok=True)
-    target_output = os.path.join(fixed_dir, f"{workshop_id}.png")
+    target_output = os.path.join(fixed_dir, f"{workshop_id}.jpg")
 
-    # Render directly to public/thumbnails/fixed/<workshop_id>.png
+    # Render directly to public/thumbnails/fixed/<workshop_id>.jpg
     success = render_thumbnail(model_json, target_output, verbose=verbose)
 
     if not success:
@@ -294,7 +294,7 @@ def main():
         # Find all files directly in public/thumbnails and parse their filenames
         all_ids = sorted([
             os.path.splitext(f)[0] for f in os.listdir(thumbnails_dir)
-            if f.endswith(".png") and os.path.isfile(os.path.join(thumbnails_dir, f))
+            if f.endswith(".jpg") and os.path.isfile(os.path.join(thumbnails_dir, f))
         ])
         # Filter: Must be Live2D and not yet checked
         ids = [wid for wid in all_ids if wid in live2d_ids and wid not in checked_ids]

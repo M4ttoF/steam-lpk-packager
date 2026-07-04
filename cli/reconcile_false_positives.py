@@ -24,7 +24,7 @@ def reconcile():
             if not line or line.startswith(";"):
                 continue
             # Extract the numeric filename
-            match = re.search(r"(\d+)\.png$", line)
+            match = re.search(r"(\d+)\.(png|jpg)$", line)
             if match:
                 false_positive_ids.append(match.group(1))
 
@@ -39,8 +39,8 @@ def reconcile():
     deleted_fixed = 0
     
     for wid in false_positive_ids:
-        bad_path = os.path.join(PROJECT_ROOT, "public", "thumbnails", "bad_detected", f"{wid}.png")
-        fixed_path = os.path.join(PROJECT_ROOT, "public", "thumbnails", "fixed", f"{wid}.png")
+        bad_path = os.path.join(PROJECT_ROOT, "public", "thumbnails", "bad_detected", f"{wid}.jpg")
+        fixed_path = os.path.join(PROJECT_ROOT, "public", "thumbnails", "fixed", f"{wid}.jpg")
         
         if os.path.isfile(bad_path):
             try:

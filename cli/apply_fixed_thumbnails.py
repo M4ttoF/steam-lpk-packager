@@ -16,7 +16,7 @@ def apply_fixes():
         print("No fixed thumbnails directory found. Nothing to deploy!")
         return
 
-    fixed_files = [f for f in os.listdir(FIXED_DIR) if f.endswith(".png")]
+    fixed_files = [f for f in os.listdir(FIXED_DIR) if f.endswith(".jpg")]
     print(f"Found {len(fixed_files)} fixed thumbnails ready to deploy.")
 
     copied_count = 0

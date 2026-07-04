@@ -89,15 +89,29 @@ def process_item(item_id):
     except Exception as e:
         return False, f"Failed to parse config.json: {str(e)}"
         
-    # 2. Extract PNG thumbnail
+    # 2. Extract PNG thumbnail and convert to JPG
     os.makedirs(THUMB_DIR, exist_ok=True)
     png_files = glob.glob(os.path.join(item_dir, "*.png"))
     local_thumb_path = ""
     if png_files:
-        # Copy the first found png to public/thumbnails/<id>.png
-        target_thumb = os.path.join(THUMB_DIR, f"{item_id}.png")
-        shutil.copy(png_files[0], target_thumb)
-        local_thumb_path = f"/thumbnails/{item_id}.png"
+        try:
+            from PIL import Image
+            # Load and convert PNG to JPG with size limit
+            img = Image.open(png_files[0])
+            if img.width > 512 or img.height > 512:
+                img.thumbnail((512, 512), Image.Resampling.LANCZOS)
+            target_thumb = os.path.join(THUMB_DIR, f"{item_id}.jpg")
+            rgb_img = img.convert("RGB")
+            rgb_img.save(target_thumb, "JPEG", quality=75)
+            img.close()
+            rgb_img.close()
+            local_thumb_path = f"/thumbnails/{item_id}.jpg"
+        except Exception as e:
+            print(f"  [WARNING] Failed to optimize thumbnail for {item_id}: {e}")
+            # Fallback copy
+            target_thumb = os.path.join(THUMB_DIR, f"{item_id}.png")
+            shutil.copy(png_files[0], target_thumb)
+            local_thumb_path = f"/thumbnails/{item_id}.png"
         
     # 3. Spawn LPK decrypt/extraction pipeline (calling CLI batch_extract_models script)
     # We will invoke the existing batch_extract_models.py inside cli/ to handle format standardization

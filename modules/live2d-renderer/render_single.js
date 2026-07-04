@@ -96,14 +96,24 @@ async function run() {
             throw new Error(`Render failed: ${renderError}`);
         }
 
-        const rawPath = outputPngPath.replace(/\.png$/i, '_raw.png');
+        const ext = path.extname(outputPngPath);
+        const rawPath = outputPngPath.replace(new RegExp(ext + '$', 'i'), '_raw.png');
         await page.screenshot({ path: rawPath, omitBackground: true });
 
-        // Trim transparent borders, then resize down to the 1024x1024 square target size
-        await sharp(rawPath)
-            .trim()
-            .resize(1024, 1024, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-            .toFile(outputPngPath);
+        // Trim transparent borders, resize down to target size
+        const isJpg = ext.toLowerCase() === '.jpg' || ext.toLowerCase() === '.jpeg';
+        let pipeline = sharp(rawPath).trim();
+        
+        if (isJpg) {
+            pipeline = pipeline
+                .resize(512, 512, { fit: 'contain', background: '#181b28' })
+                .jpeg({ quality: 75 });
+        } else {
+            pipeline = pipeline
+                .resize(1024, 1024, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } });
+        }
+        
+        await pipeline.toFile(outputPngPath);
             
         fs.unlinkSync(rawPath);
         console.log(`[live2d-renderer] ✅ Done: ${outputPngPath}`);
