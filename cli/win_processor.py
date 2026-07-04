@@ -135,6 +135,17 @@ def process_item(item_id):
                 break
             except Exception:
                 time.sleep(0.5)
+
+    # Delete the source LPK file to save disk space if successfully decrypted
+    decrypted_dir = os.path.join(CACHE_DIR, item_id, "decrypted")
+    if os.path.isdir(decrypted_dir) and len(os.listdir(decrypted_dir)) > 0:
+        lpk_files = glob.glob(os.path.join(item_dir, "*.lpk"))
+        if lpk_files:
+            try:
+                os.remove(lpk_files[0])
+                print(f"  [{item_id}] 🧹 [DELETE] Removed source LPK file: {os.path.basename(lpk_files[0])}")
+            except Exception as e:
+                print(f"  [{item_id}] [WARNING] Failed to remove source LPK file: {e}")
         
     # 4. Check outputs inside workshop_cache/<item_id>/decrypted/
     decrypted_dir = os.path.join(CACHE_DIR, item_id, "decrypted")
