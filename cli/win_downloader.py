@@ -25,7 +25,7 @@ def load_env_config():
 env_cfg = load_env_config()
 
 default_storage = os.path.join(BASE_DIR, "storage")
-STORAGE_DIR = env_cfg.get("STORAGE_ROOT", default_storage)
+STORAGE_DIR = env_cfg.get("STORAGE_DIR", default_storage)
 CACHE_DIR = os.path.join(STORAGE_DIR, "workshop_cache")
 
 try:
