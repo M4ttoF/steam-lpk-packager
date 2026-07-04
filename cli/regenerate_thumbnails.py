@@ -73,36 +73,35 @@ def get_connection():
 
 def is_bad_thumbnail(png_path: str, verbose: bool = False) -> bool:
     """Returns True if the thumbnail is the auto-generated bad one."""
-    result = subprocess.run(
-         [sys.executable, DETECT_PY, png_path],
-         capture_output=True, text=True
-    )
-    verdict = result.stdout.strip()
-    if verbose:
-        safe_base = os.path.basename(png_path).encode('ascii', errors='replace').decode('ascii')
-        print(f"    [detect] {verdict}  <- {safe_base}")
-        if result.stderr.strip():
-            safe_err = result.stderr.strip().encode('ascii', errors='replace').decode('ascii')
-            print(f"    [detect stderr] {safe_err}")
-    return verdict == "BAD"
+    try:
+        from detect_thumbnail import is_default_thumbnail
+        is_bad, stats = is_default_thumbnail(png_path)
+        if verbose:
+            safe_base = os.path.basename(png_path).encode('ascii', errors='replace').decode('ascii')
+            print(f"    [detect] Verdict: {'BAD' if is_bad else 'OK'}  <- {safe_base} ({stats})")
+        return is_bad
+    except Exception as e:
+        if verbose:
+            print(f"    [detect error] {e}")
+        return False
 
 
 # ─── Decryption ──────────────────────────────────────────────────────────────
 
 def find_decrypted_model(workshop_dir: str) -> str | None:
     """
-    Looks for model0.json in the decrypted/ subfolder.
+    Looks for model definition files recursively in the decrypted/ subfolder.
     Returns the path if found, else None.
     """
     decrypted_base = os.path.join(workshop_dir, "decrypted")
     if not os.path.isdir(decrypted_base):
         return None
 
-    # Model lands in decrypted/<character_name>/model0.json
-    for sub in os.listdir(decrypted_base):
-        candidate = os.path.join(decrypted_base, sub, "model0.json")
-        if os.path.isfile(candidate):
-            return candidate
+    # Search recursively for Live2D configuration files
+    for root, dirs, files in os.walk(decrypted_base):
+        for f in files:
+            if f.endswith(".model3.json") or f.endswith(".model.json") or f == "model0.json":
+                return os.path.join(root, f)
     return None
 
 
