@@ -69,8 +69,12 @@ def download_batch(items_to_download):
         return False, f"Local steamcmd.exe not found at: {steamcmd_exe}"
         
     # Write a steamcmd batch download script
+    # We set force_install_dir to the E: drive CACHE_DIR to bypass C: low space errors
     script_path = os.path.join(BASE_DIR, "steamcmd", "download_script.txt")
     with open(script_path, "w", encoding="utf-8") as f:
+        # SteamCMD expects forward slashes or escaped backslashes for directories
+        safe_cache_dir = CACHE_DIR.replace("\\", "/")
+        f.write(f"force_install_dir \"{safe_cache_dir}\"\n")
         f.write("login anonymous\n")
         for item_id in items_to_download:
             f.write(f"workshop_download_item 616720 {item_id}\n")
@@ -107,6 +111,7 @@ def download_batch(items_to_download):
         paths_to_check.append(env_vars.get("STEAM_CONTENT_DIR"))
         
     paths_to_check.extend([
+        os.path.join(CACHE_DIR, "steamapps", "workshop", "content", "616720"),
         os.path.join(BASE_DIR, "steamcmd", "steamapps", "workshop", "content", "616720"),
         os.path.expandvars(r"%LOCALAPPDATA%\VirtualStore\Program Files (x86)\Steam\steamapps\workshop\content\616720"),
         r"C:\steamcmd\steamapps\workshop\content\616720",
