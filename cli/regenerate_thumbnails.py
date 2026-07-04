@@ -269,18 +269,23 @@ def main():
         print(f"[Error] public/thumbnails not found: {thumbnails_dir}")
         sys.exit(1)
 
-    # 1. Fetch already-checked items from SQLite
+    # 1. Fetch already-checked items and Live2D model IDs from SQLite
     checked_ids = set()
+    live2d_ids = set()
+    
     if not args.workshop_id:
         try:
             conn = get_connection()
             cursor = conn.cursor()
             cursor.execute("SELECT id FROM models WHERE thumbnail_checked = 1")
             checked_ids = {row[0] for row in cursor.fetchall()}
+            
+            cursor.execute("SELECT id FROM models WHERE steam_type = 'Live2D'")
+            live2d_ids = {row[0] for row in cursor.fetchall()}
             conn.close()
-            print(f"Loaded {len(checked_ids)} already-checked thumbnails from SQLite cache.")
+            print(f"Loaded {len(checked_ids)} already-checked thumbnails and {len(live2d_ids)} Live2D model IDs from SQLite.")
         except Exception as e:
-            print(f"[WARNING] Failed to load checked cache from SQLite: {e}")
+            print(f"[WARNING] Failed to load metadata cache from SQLite: {e}")
 
     # Curate IDs to process
     if args.workshop_id:
@@ -291,8 +296,8 @@ def main():
             os.path.splitext(f)[0] for f in os.listdir(thumbnails_dir)
             if f.endswith(".png") and os.path.isfile(os.path.join(thumbnails_dir, f))
         ])
-        # Filter out already checked items
-        ids = [wid for wid in all_ids if wid not in checked_ids]
+        # Filter: Must be Live2D and not yet checked
+        ids = [wid for wid in all_ids if wid in live2d_ids and wid not in checked_ids]
 
     print("=" * 60)
     print(f"LPK STUDIO — THUMBNAIL REGENERATION PIPELINE (CURATED SET)")
