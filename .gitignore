@@ -13,4 +13,3 @@ public/thumbnails/bad_detected/*
 **/__pycache__/*
 db/catalog.sqlite
 steamcmd.zip
-public/thumbnails/*.png
