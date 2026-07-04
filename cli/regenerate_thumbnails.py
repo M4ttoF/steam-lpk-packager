@@ -245,17 +245,6 @@ def process_item(workshop_id: str, dry_run: bool = False, verbose: bool = False,
         print(f"  {prefix}[!] [{workshop_id}] ERROR: Rendering failed - {elapsed:.0f}ms")
         return "render_failed"
 
-    # Update SQLite database to mark the thumbnail as regenerated
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("UPDATE models SET thumbnail_regenerated = 1 WHERE id = ?", (workshop_id,))
-        conn.commit()
-        conn.close()
-    except Exception as db_err:
-        if verbose:
-            print(f"  {prefix}[{workshop_id}] [WARNING] Database update error: {db_err}")
-
     elapsed_sec = time.perf_counter() - start_time
     print(f"  {prefix}[+] [{workshop_id}] Processed and recovered bad thumbnail - {elapsed_sec:.1f}s")
     return "ok"
@@ -275,30 +264,82 @@ def main():
         print(f"[Error] public/thumbnails not found: {thumbnails_dir}")
         sys.exit(1)
 
-    # Collect IDs to process from the curated public/thumbnails folder
+    # 1. Fetch already-checked items from SQLite
+    checked_ids = set()
+    if not args.workshop_id:
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM models WHERE thumbnail_checked = 1")
+            checked_ids = {row[0] for row in cursor.fetchall()}
+            conn.close()
+            print(f"Loaded {len(checked_ids)} already-checked thumbnails from SQLite cache.")
+        except Exception as e:
+            print(f"[WARNING] Failed to load checked cache from SQLite: {e}")
+
+    # Curate IDs to process
     if args.workshop_id:
         ids = [args.workshop_id]
     else:
         # Find all files directly in public/thumbnails and parse their filenames
-        ids = sorted([
+        all_ids = sorted([
             os.path.splitext(f)[0] for f in os.listdir(thumbnails_dir)
             if f.endswith(".png") and os.path.isfile(os.path.join(thumbnails_dir, f))
         ])
+        # Filter out already checked items
+        ids = [wid for wid in all_ids if wid not in checked_ids]
 
     print("=" * 60)
     print(f"LPK STUDIO — THUMBNAIL REGENERATION PIPELINE (CURATED SET)")
     if args.dry_run:
         print("MODE: DRY RUN (no files will be modified)")
     print(f"THUMBNAILS SOURCE: {thumbnails_dir}")
-    print(f"ITEMS TO SCAN:     {len(ids)}")
+    print(f"ITEMS TO PROCESS:  {len(ids)}")
     print("=" * 60)
 
     counts = {"ok": 0, "skipped": 0, "no_thumbnail": 0, "no_model": 0, "render_failed": 0}
+
+    # Batch queues for SQLite commits
+    batch_checked = []       # [(id,)]
+    batch_regenerated = []   # [(id,)]
+    BATCH_LIMIT = 100
+
+    def commit_batches():
+        if args.dry_run:
+            return
+        if not batch_checked and not batch_regenerated:
+            return
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            if batch_checked:
+                cursor.executemany("UPDATE models SET thumbnail_checked = 1 WHERE id = ?", batch_checked)
+            if batch_regenerated:
+                cursor.executemany("UPDATE models SET thumbnail_checked = 1, thumbnail_regenerated = 1 WHERE id = ?", batch_regenerated)
+            conn.commit()
+            conn.close()
+            batch_checked.clear()
+            batch_regenerated.clear()
+        except Exception as e:
+            print(f"\n  [WARNING] Failed to commit batch update to SQLite database: {e}")
 
     for i, wid in enumerate(ids, 1):
         progress_prefix = f"[{i}/{len(ids)}]"
         status = process_item(wid, dry_run=args.dry_run, verbose=args.verbose, progress_prefix=progress_prefix)
         counts[status] = counts.get(status, 0) + 1
+
+        # Stage updates based on status
+        if status == "skipped":
+            batch_checked.append((wid,))
+        elif status == "ok":
+            batch_regenerated.append((wid,))
+
+        # Commit every 100 items to SQLite
+        if i % BATCH_LIMIT == 0:
+            commit_batches()
+
+    # Final batch flush
+    commit_batches()
 
     print("\n" + "=" * 60)
     print("PIPELINE COMPLETE — Summary")
