@@ -13,6 +13,16 @@ createApp({
         const catalogItems = ref([]);
         const catalogTotal = ref(0);
         const catalogLoading = ref(false);
+        const selectedModel = ref(null);
+
+        const openLightbox = (item) => {
+            selectedModel.value = item;
+        };
+
+        const closeLightbox = () => {
+            selectedModel.value = null;
+        };
+
         const catalogFilters = reactive({
             search: '',
             types: ['Live2D', 'Spine'],
@@ -316,7 +326,10 @@ createApp({
             resetPageAndFetch,
             nextPage,
             prevPage,
-            fetchStats
+            fetchStats,
+            selectedModel,
+            openLightbox,
+            closeLightbox
         };
     }
 }).mount('#app');

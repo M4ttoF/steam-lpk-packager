@@ -211,7 +211,7 @@
                 <div v-else>
                     <div class="catalog-grid">
                         <div v-for="item in catalogItems" :key="item.id" class="model-card" :class="{ 'not-cached': item.packaged === 0 }">
-                            <div class="card-thumb-wrapper">
+                            <div class="card-thumb-wrapper" @click="openLightbox(item)" style="cursor: pointer;">
                                 <img 
                                     :src="item.thumbnail_local ? item.thumbnail_local : 'https://placehold.co/400x300/181b28/8b949e?text=Thumbnail+Pending'" 
                                     :alt="item.title"
@@ -225,22 +225,33 @@
                             <div class="card-details">
                                 <div class="card-header-row">
                                     <h3 class="card-title" :title="item.title">{{ item.title }}</h3>
-                                    <button 
-                                        v-if="item.packaged === 1" 
-                                        @click="copyPath(item)" 
-                                        class="action-btn-icon" 
-                                        title="Copy absolute FQ file path to clipboard"
-                                    >
-                                        📋
-                                    </button>
-                                    <button 
-                                        v-else 
-                                        @click="triggerDownload(item)" 
-                                        class="action-btn-icon download" 
-                                        title="Download and pack this item immediately"
-                                    >
-                                        📥
-                                    </button>
+                                    <div class="card-actions-wrapper" style="display: flex; gap: 4px; align-items: center;">
+                                        <a 
+                                            :href="'http://steamcommunity.com/sharedfiles/filedetails/?id=' + item.id" 
+                                            target="_blank" 
+                                            class="action-btn-icon steam-link" 
+                                            title="View original listing on Steam Workshop"
+                                            style="text-decoration: none; line-height: 1;"
+                                        >
+                                            🌐
+                                        </a>
+                                        <button 
+                                            v-if="item.packaged === 1" 
+                                            @click="copyPath(item)" 
+                                            class="action-btn-icon" 
+                                            title="Copy absolute FQ file path to clipboard"
+                                        >
+                                            📋
+                                        </button>
+                                        <button 
+                                            v-else 
+                                            @click="triggerDownload(item)" 
+                                            class="action-btn-icon download" 
+                                            title="Download and pack this item immediately"
+                                        >
+                                            📥
+                                        </button>
+                                    </div>
                                 </div>
                                 <p class="card-author">By {{ item.creator || 'Anonymous' }}</p>
                                 <div class="card-bottom">
@@ -358,6 +369,33 @@
                 </div>
             </div>
         </main>
+
+        <!-- Lightbox Modal Overlay -->
+        <div v-if="selectedModel" class="lightbox-overlay" @click.self="closeLightbox">
+            <div class="lightbox-content">
+                <button class="lightbox-close" @click="closeLightbox">✕</button>
+                <img 
+                    :src="selectedModel.thumbnail_local ? selectedModel.thumbnail_local : 'https://placehold.co/400x300/181b28/8b949e?text=No+Thumbnail'" 
+                    :alt="selectedModel.title" 
+                    class="lightbox-img"
+                    onerror="this.src='https://placehold.co/400x300/181b28/8b949e?text=No+Thumbnail'"
+                >
+                <div class="lightbox-caption">
+                    <h2>{{ selectedModel.title }}</h2>
+                    <p>By {{ selectedModel.creator || 'Anonymous' }} | ID: {{ selectedModel.id }}</p>
+                    <div style="margin-top: 10px;">
+                        <a 
+                            :href="'http://steamcommunity.com/sharedfiles/filedetails/?id=' + selectedModel.id" 
+                            target="_blank" 
+                            class="btn primary-btn"
+                            style="display: inline-block; text-decoration: none; font-size: 14px;"
+                        >
+                            🌐 View on Steam Workshop
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- App Script -->
