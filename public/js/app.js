@@ -86,10 +86,11 @@ createApp({
             const folder = item.steam_type.toLowerCase() === 'live2d' ? 'live2d_packages' : 'spine_packages';
             const filename = `${item.steam_type.toLowerCase()}_${item.id}.zip`;
             
-            // Format absolute path depending on Windows or Unix formats resolved by backend
-            const isWin = projectRootDir.value.includes('\\') || projectRootDir.value.includes(':');
+            // Use the configured storage root (E:\lpk-studio-storage), not the project directory
+            const base = editableConfig.storageRoot || projectRootDir.value;
+            const isWin = base.includes('\\') || base.includes(':');
             const separator = isWin ? '\\' : '/';
-            const fqPath = `${projectRootDir.value}${separator}cli${separator}${folder}${separator}${filename}`;
+            const fqPath = `${base}${separator}${folder}${separator}${filename}`;
             
             navigator.clipboard.writeText(fqPath).then(() => {
                 toastMessage.value = `Copied absolute path to clipboard!`;

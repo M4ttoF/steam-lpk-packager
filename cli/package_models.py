@@ -42,7 +42,7 @@ def package_single_item(item_id, steam_type):
     zip_path = os.path.join(target_dir, zip_filename)
 
     try:
-        # Create zip archive of the entire decrypted directory
+        # Create zip archive of the entire decrypted directory and include top‑level model files
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
             for root, dirs, files in os.walk(decrypted_path):
                 for file in files:
@@ -50,6 +50,12 @@ def package_single_item(item_id, steam_type):
                     # Resolve relative path inside the zip file
                     rel_path = os.path.relpath(full_path, decrypted_path)
                     zf.write(full_path, rel_path)
+            # Add model JSON and .moc files located alongside the decrypted folder
+            model_json = os.path.join(CACHE_DIR, item_id, f"{item_id}.model.json")
+            moc_file = os.path.join(CACHE_DIR, item_id, "model_0.moc")
+            for extra_path in (model_json, moc_file):
+                if os.path.isfile(extra_path):
+                    zf.write(extra_path, os.path.basename(extra_path))
         return True, zip_path
     except Exception as e:
         return False, f"Failed to compile zip: {e}"
@@ -102,18 +108,52 @@ def run_packaging(specific_id=None):
 
     print(f"Found {len(targets)} models to package.")
 
+    import concurrent.futures
     success_count = 0
     updated_records = []
 
-    for idx, (item_id, steam_type) in enumerate(targets, 1):
-        print(f"[{idx}/{len(targets)}] Packaging {steam_type} item {item_id}...")
+    # Helper function for worker threads
+    def process_worker(item_info):
+        item_id, steam_type = item_info
+        # Print status in a thread-safe manner
+        sys.stdout.write(f"Packaging {steam_type} item {item_id}...\n")
+        sys.stdout.flush()
+        
         success, result = package_single_item(item_id, steam_type)
         if success:
-            print(f"  [OK] Saved package to: {result}")
-            success_count += 1
-            updated_records.append((item_id,))
+            sys.stdout.write(f"  [OK] Saved package to: {result}\n")
+            sys.stdout.flush()
+            
+            # If clean flag is set, delete only the decrypted workshop cache directory
+            if globals().get('CLEAN_AFTER_PACKAGING', False):
+                import shutil
+                decrypted_path = os.path.join(CACHE_DIR, item_id, "decrypted")
+                if os.path.isdir(decrypted_path):
+                    try:
+                        shutil.rmtree(decrypted_path)
+                        sys.stdout.write(f"  [CLEAN] Deleted decrypted folder: {decrypted_path}\n")
+                        sys.stdout.flush()
+                    except Exception as clean_err:
+                        sys.stdout.write(f"  [WARNING] Failed to delete decrypted folder {decrypted_path}: {clean_err}\n")
+                        sys.stdout.flush()
+            return True, item_id
         else:
-            print(f"  [SKIPPED/FAILED] {result}")
+            sys.stdout.write(f"  [SKIPPED/FAILED] {result}\n")
+            sys.stdout.flush()
+            return False, item_id
+
+    # Use ThreadPoolExecutor to run tasks in parallel (I/O bound)
+    # Using 12 worker threads as standard sweet spot for CPU/Disk balance
+    max_workers = 16
+    print(f"Starting parallel packaging with {max_workers} worker threads...")
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(process_worker, target): target for target in targets}
+        for future in concurrent.futures.as_completed(futures):
+            success, item_id = future.result()
+            if success:
+                success_count += 1
+                updated_records.append((item_id,))
 
     # Mark as packaged in SQLite database
     if updated_records:
@@ -132,7 +172,11 @@ def run_packaging(specific_id=None):
     print("=" * 60)
 
 if __name__ == '__main__':
-    # Accept specific ID command-line argument if passed
-    import sys
-    arg_id = sys.argv[1] if len(sys.argv) > 1 else None
-    run_packaging(arg_id)
+    import argparse
+    parser = argparse.ArgumentParser(description="LPK Studio Zip Packager")
+    parser.add_argument("item_id", nargs="?", default=None, help="Specific item ID to package")
+    parser.add_argument("--clean", action="store_true", help="Delete the decrypted cache directory after successful zipping")
+    args = parser.parse_args()
+    
+    CLEAN_AFTER_PACKAGING = args.clean
+    run_packaging(args.item_id)
